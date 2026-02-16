@@ -14,6 +14,10 @@ namespace ManuBackend.Data
         // DbSet = represents the "Users" table in the database  
         public DbSet<User> Users { get; set; }
 
+        public DbSet<Product> Products { get; set; }
+
+        public DbSet<BOM> BOMs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
