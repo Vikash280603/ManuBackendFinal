@@ -1,10 +1,11 @@
+using ManuBackend.Data;
+using ManuBackend.Repository;
 using ManuBackend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using ManuBackend.Data;
-using ManuBackend.Repository;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // -------------------- DEPENDENCY INJECTION --------------------  
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+// ✅ NEW: Product services  
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IProductService, ProductService>();
+
 
 // -------------------- JWT AUTHENTICATION --------------------  
 var jwtKey = builder.Configuration["Jwt:Key"]!;
