@@ -1,9 +1,12 @@
-﻿// Inventory entity - represents inventory for a product at a location  
+// Inventory entity - represents inventory for a product at a location  
 // One product can have inventory at multiple locations  
 namespace ManuBackend.Models
 {
     public class Inventory
     {
+
+
+
         // Primary key - auto-incremented  
         public int InventoryId { get; set; }
 
@@ -19,5 +22,6 @@ namespace ManuBackend.Models
 
         // Navigation property - one inventory has many materials  
         public virtual ICollection<InventoryMaterial> Materials { get; set; } = new List<InventoryMaterial>();
+
     }
 }
