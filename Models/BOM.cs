@@ -1,56 +1,14 @@
-﻿// -------------------------------------------------------------
-// BOM ENTITY (MODEL)
-// -------------------------------------------------------------
-// BOM = Bill Of Materials
-//
-// This class represents a DATABASE TABLE.
-//
-// In EF Core:
-// Class  → Table
-// Property → Column
-//
-// Each BOM entry represents one material
-// required to build a product.
-// -------------------------------------------------------------
-
+﻿
 namespace ManuBackend.Models
 {
     // Public class = accessible everywhere in project
     public class BOM
     {
-        // ---------------------------------------------------------
-        // PRIMARY KEY
-        // ---------------------------------------------------------
-        // Unique identifier for each row in BOM table.
-        //
         // EF Core automatically understands:
         // Property named "BOMID" or "Id"
         // = Primary Key
-        //
-        // Database column:
-        // BOMID (int, identity, primary key)
-        // ---------------------------------------------------------
         public int BOMID { get; set; }
 
-
-
-        // ---------------------------------------------------------
-        // FOREIGN KEY
-        // ---------------------------------------------------------
-        // This connects BOM to Product table.
-        //
-        // It stores the Product's Id.
-        //
-        // Example:
-        // If Product.Id = 5
-        // Then ProductId = 5 here.
-        //
-        // This creates a relationship:
-        // One Product → Many BOMs
-        //
-        // Database column:
-        // ProductId (int, foreign key)
-        // ---------------------------------------------------------
         public int ProductId { get; set; }
 
 
