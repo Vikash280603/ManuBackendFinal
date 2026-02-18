@@ -2,5 +2,6 @@
 {
     public class UpdateInventoryDto
     {
+        public string? Location {  get; set; }
     }
 }
