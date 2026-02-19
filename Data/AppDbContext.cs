@@ -1,11 +1,10 @@
 ﻿// This using statement allows us to use Entity Framework Core classes
 // like DbContext, DbSet, ModelBuilder, etc.
 // Without this, EF Core-related classes will not be recognized.
-using Microsoft.EntityFrameworkCore;
-
 // This gives access to our Models folder (User, Product, BOM classes)
 // So we can use those classes inside this file.
 using ManuBackend.Models;
+using Microsoft.EntityFrameworkCore;
 
 // Namespace = logical grouping of related classes
 // Here, this file belongs to the "Data" layer of the project.
@@ -18,7 +17,6 @@ namespace ManuBackend.Data
     public class AppDbContext : DbContext
     {
         // ---------------- CONSTRUCTOR ----------------
-        // Constructor is a special method that runs when this class is created.
         // It is used to initialize the object.
 
         // DbContextOptions<AppDbContext> contains:
@@ -62,6 +60,10 @@ namespace ManuBackend.Data
         // Each BOM object becomes a row in the BOMs table.
         public DbSet<BOM> BOMs { get; set; }
 
+     
+        public DbSet<Inventory> Inventories { get; set; }
+        public DbSet<InventoryMaterial> InventoryMaterials { get; set; }
+
 
         // ---------------- MODEL CONFIGURATION ----------------
 
@@ -88,7 +90,29 @@ namespace ManuBackend.Data
             modelBuilder.Entity<User>()  // Select the User entity
                 .HasIndex(u => u.Email)  // Create index on Email property
                 .IsUnique();             // Make it UNIQUE (no duplicates allowed)
+                                         // -------------------- INVENTORY CONFIGURATION --------------------  
+            modelBuilder.Entity<Inventory>(entity =>
+            {
+                entity.HasKey(i => i.InventoryId);
 
+                entity.Property(i => i.Location)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.HasMany(i => i.Materials)
+                    .WithOne(m => m.Inventory)
+                    .HasForeignKey(m => m.InventoryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<InventoryMaterial>(entity =>
+            {
+                entity.HasKey(m => m.Id);
+
+                entity.Property(m => m.MaterialName)
+                    .IsRequired()
+                    .HasMaxLength(200);
+            });
             // This ensures:
             // ❌ Two users cannot register with the same email.
             // If they try, database will throw an error.

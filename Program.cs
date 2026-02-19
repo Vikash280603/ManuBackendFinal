@@ -71,12 +71,13 @@ builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 // Register Authentication Service
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Register Product Repository
+// Product services (already exists)  
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
-
-// Register Product Service
 builder.Services.AddScoped<IProductService, ProductService>();
 
+// ✅ Inventory services  
+builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 /*
 Why Dependency Injection?
 

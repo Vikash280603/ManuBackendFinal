@@ -1,7 +1,7 @@
 ﻿// DTO for returning material data
 namespace ManuBackend.DTOs
-{
-    public class InventoryMaterialsDto
+{ 
+    public class InventoryMaterialDto
     {
         public int Id { get; set; }
         public int InventoryId { get; set; }

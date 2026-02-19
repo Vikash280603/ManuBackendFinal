@@ -1,31 +1,29 @@
 ﻿using ManuBackend.DTOs;
 
+//using YourProject.Api.Modules.Inventory.DTOs;
 namespace ManuBackend.Services
 {
-    public interface IInventoryService
-    {
+  
 
-        // -------------------- INVENTORY OPERATIONS --------------------  
-        Task<List<InventoryDto>> GetAllInventoriesAsync();
-        Task<InventoryDto?> GetInventoryByIdAsync(int inventoryId);
-        Task<List<InventoryDto>> GetInventoriestByProductIdAsync(int productId);
-        Task<InventoryDto> CreateInventoryAsync(CreateInventoryDto productDto);
-        Task<InventoryDto> UpdateInventoryAsync(InventoryDto inventoryDto);
-        Task<bool> DeleteInventoryAsync(int inventoryId);
+   
+        public interface IInventoryService
+        {
+            // Read operations  
+            Task<List<InventoryDto>> GetAllInventoriesAsync();
+            Task<InventoryDto?> GetInventoryByIdAsync(int inventoryId);
+            Task<List<InventoryDto>> GetInventoriesByProductIdAsync(int productId);
 
-        // -------------------- MATERIAL OPERATIONS --------------------  
-        Task<List<InventoryMaterialsDto>> GetAllMaterialsByInventoryIdAsync(int inventoryId);
-        Task<InventoryMaterialsDto> CreateMaterialAsync(int inventoryId, CreateInventoryMaterialDto dto);
-        Task<InventoryMaterialsDto> UpdateMaterialAsync(int materialId, UpdateInventoryMaterialDto dto);
-        Task<bool> DeleteMaterialAsync(int materialId);
+            // Material update operations  
+            Task<InventoryMaterialDto> UpdateMaterialAsync(int materialId, UpdateInventoryMaterialDto dto);
+            Task<InventoryMaterialDto> AdjustMaterialQuantityAsync(int materialId, int delta);
 
-        // -------------------- SPECIAL OPERATIONS --------------------  
+            // Special operations  
+            Task<List<InventoryMaterialDto>> GetLowStockMaterialsAsync();
 
-        // Get all low stock materials for alerts  
-        Task<List<InventoryMaterialsDto>> GetLowStockMaterialsAsync();
+            // Admin operations  
+            Task<int> GenerateInventoriesAsync();
+            Task SyncInventoryMaterialsAsync(int productId);
 
-        // Adjust material quantity (for +/- buttons)  
-        Task<InventoryMaterialsDto> AdjustMaterialQuantityAsync(int materialId, int adjustment);
-
+            Task CreateInventoryForProductAsync(int productId);
+        }
     }
-}
