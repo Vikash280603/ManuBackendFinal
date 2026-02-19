@@ -1,29 +1,31 @@
-﻿// Implementation of IProductService  
-// Contains business logic, validation, and DTO mapping  
+﻿// Implementation of IProductService
+// Contains business logic, validation, and DTO mapping
 
 using ManuBackend.DTOs;
 using ManuBackend.Models;
 using ManuBackend.Repository;
-
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ManuBackend.Services
 {
     public class ProductService : IProductService
     {
         private readonly IProductRepository _repo;
+        private readonly IServiceProvider _serviceProvider; // ✅ CHANGED: Use IServiceProvider to avoid circular dependency
 
-        public ProductService(IProductRepository repo)
+        // ✅ UPDATED CONSTRUCTOR
+        public ProductService(IProductRepository repo, IServiceProvider serviceProvider)
         {
             _repo = repo;
+            _serviceProvider = serviceProvider;
         }
 
-        // -------------------- PRODUCT OPERATIONS --------------------  
+        // -------------------- PRODUCT OPERATIONS --------------------
 
         public async Task<List<ProductDto>> GetAllProductsAsync(string? searchTerm = null)
         {
             var products = await _repo.GetAllProductsAsync(searchTerm);
 
-            // Map Product entities to ProductDto  
             return products.Select(p => new ProductDto
             {
                 Id = p.Id,
@@ -65,23 +67,24 @@ namespace ManuBackend.Services
             };
         }
 
+        // ✅ UPDATED: Auto-create inventory after product creation
         public async Task<ProductDto> CreateProductAsync(CreateProductDto dto)
         {
-            // Validate allowed categories  
+            // Validate allowed categories
             var allowedCategories = new[] { "Mechanical", "Electrical", "Packaging", "Construction", "Tools" };
             if (!allowedCategories.Contains(dto.Category))
             {
                 throw new InvalidOperationException("Invalid category selected");
             }
 
-            // Validate allowed statuses  
+            // Validate allowed statuses
             var allowedStatuses = new[] { "ACTIVE", "DISCONTINUED" };
             if (!allowedStatuses.Contains(dto.Status))
             {
                 throw new InvalidOperationException("Invalid status selected");
             }
 
-            // Create product entity  
+            // Create product entity
             var product = new Product
             {
                 Name = dto.Name,
@@ -91,6 +94,23 @@ namespace ManuBackend.Services
             };
 
             var savedProduct = await _repo.CreateProductAsync(product);
+
+            // ✅ NEW: Auto-create inventory for this product
+            // Note: Inventory will have NO materials initially (BOMs not added yet)
+            // Materials will be synced when BOMs are created
+            try
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+                    await inventoryService.CreateInventoryForProductAsync(savedProduct.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail product creation
+                Console.WriteLine($"Failed to create inventory: {ex.Message}");
+            }
 
             return new ProductDto
             {
@@ -109,7 +129,7 @@ namespace ManuBackend.Services
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {id} not found");
 
-            // Update only provided fields  
+            // Update only provided fields
             if (!string.IsNullOrWhiteSpace(dto.Name))
                 product.Name = dto.Name;
 
@@ -144,7 +164,7 @@ namespace ManuBackend.Services
             return await _repo.DeleteProductAsync(id);
         }
 
-        // -------------------- BOM OPERATIONS --------------------  
+        // -------------------- BOM OPERATIONS --------------------
 
         public async Task<List<BOMDto>> GetBOMsByProductIdAsync(int productId)
         {
@@ -160,9 +180,10 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
+        // ✅ UPDATED: Sync inventory materials after BOM creation
         public async Task<BOMDto> CreateBOMAsync(int productId, CreateBOMDto dto)
         {
-            // Verify product exists  
+            // Verify product exists
             var product = await _repo.GetProductByIdAsync(productId);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {productId} not found");
@@ -176,6 +197,20 @@ namespace ManuBackend.Services
             };
 
             var saved = await _repo.CreateBOMAsync(bom);
+
+            // ✅ NEW: Sync inventory materials after BOM is created
+            try
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+                    await inventoryService.SyncInventoryMaterialsAsync(productId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to sync inventory materials: {ex.Message}");
+            }
 
             return new BOMDto
             {
@@ -193,7 +228,7 @@ namespace ManuBackend.Services
             if (bom == null)
                 throw new KeyNotFoundException($"BOM with ID {bomId} not found");
 
-            // Update only provided fields  
+            // Update only provided fields
             if (!string.IsNullOrWhiteSpace(dto.MaterialName))
                 bom.MaterialName = dto.MaterialName;
 
@@ -201,6 +236,20 @@ namespace ManuBackend.Services
                 bom.Quantity = dto.Quantity.Value;
 
             var updated = await _repo.UpdateBOMAsync(bom);
+
+            // ✅ NEW: Sync inventory after BOM updated (material name might have changed)
+            try
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+                    await inventoryService.SyncInventoryMaterialsAsync(updated.ProductId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to sync inventory materials: {ex.Message}");
+            }
 
             return new BOMDto
             {
@@ -212,23 +261,47 @@ namespace ManuBackend.Services
             };
         }
 
+        // ✅ UPDATED: Sync inventory after BOM deletion
         public async Task<bool> DeleteBOMAsync(int bomId)
         {
-            return await _repo.DeleteBOMAsync(bomId);
+            var bom = await _repo.GetBOMByIdAsync(bomId);
+            if (bom == null) return false;
+
+            var productId = bom.ProductId;
+            var deleted = await _repo.DeleteBOMAsync(bomId);
+
+            if (deleted)
+            {
+                // ✅ NEW: Sync inventory after BOM deleted
+                try
+                {
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+                        await inventoryService.SyncInventoryMaterialsAsync(productId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to sync inventory materials: {ex.Message}");
+                }
+            }
+
+            return deleted;
         }
 
-        // Replace entire BOM list (used in EditBOM page)  
+        // ✅ UPDATED: Sync inventory after replacing all BOMs
         public async Task<List<BOMDto>> ReplaceBOMsAsync(int productId, List<CreateBOMDto> boms)
         {
-            // Verify product exists  
+            // Verify product exists
             var product = await _repo.GetProductByIdAsync(productId);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {productId} not found");
 
-            // Delete all existing BOMs for this product  
+            // Delete all existing BOMs for this product
             await _repo.DeleteAllBOMsForProductAsync(productId);
 
-            // Create new BOMs  
+            // Create new BOMs
             var createdBOMs = new List<BOM>();
             foreach (var dto in boms)
             {
@@ -242,6 +315,20 @@ namespace ManuBackend.Services
 
                 var saved = await _repo.CreateBOMAsync(bom);
                 createdBOMs.Add(saved);
+            }
+
+            // ✅ NEW: Sync inventory materials after replacing BOMs
+            try
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+                    await inventoryService.SyncInventoryMaterialsAsync(productId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to sync inventory materials: {ex.Message}");
             }
 
             return createdBOMs.Select(b => new BOMDto

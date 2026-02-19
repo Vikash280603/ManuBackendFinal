@@ -11,37 +11,9 @@ namespace ManuBackend.Models
 
         public int ProductId { get; set; }
 
-
-
-        // ---------------------------------------------------------
-        // MATERIAL NAME
-        // ---------------------------------------------------------
-        // Name of raw material needed.
-        //
-        // string.Empty means:
-        // Default value is empty string
-        // (Avoids null reference issues)
-        //
-        // Database column:
-        // MaterialName (nvarchar)
-        // ---------------------------------------------------------
         public string MaterialName { get; set; } = string.Empty;
 
 
-
-        // ---------------------------------------------------------
-        // QUANTITY
-        // ---------------------------------------------------------
-        // How many units of this material are required.
-        //
-        // Example:
-        // Hammer needs:
-        // - 1 Steel Head
-        // - 1 Wooden Handle
-        //
-        // Database column:
-        // Quantity (int)
-        // ---------------------------------------------------------
         public int Quantity { get; set; }
 
 
