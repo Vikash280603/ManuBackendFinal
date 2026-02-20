@@ -189,8 +189,8 @@ namespace ManuBackend.Services
                         Materials = product.BOMs.Select(bom => new InventoryMaterial
                         {
                             MaterialName = bom.MaterialName,
-                            AvailableQty = 0,  // ✅ Start at 0
-                            ThresholdQty = 0,  // ✅ Start at 0
+                            AvailableQty = random.Next(0,30),  // ✅ Start at 0
+                            ThresholdQty = 10,  // ✅ Start at 0
                             CreatedAt = DateTime.UtcNow
                         }).ToList()
                     };
@@ -227,8 +227,8 @@ namespace ManuBackend.Services
                 Materials = product.BOMs.Select(bom => new InventoryMaterial
                 {
                     MaterialName = bom.MaterialName,
-                    AvailableQty = 0,
-                    ThresholdQty = 0,
+                    AvailableQty = random.Next(0, 30),  // ✅ Start at 0
+                    ThresholdQty = 10,
                     CreatedAt = DateTime.UtcNow
                 }).ToList()
             };
@@ -241,6 +241,8 @@ namespace ManuBackend.Services
             var product = await _productRepo.GetProductByIdAsync(productId);
             if (product == null)
                 throw new KeyNotFoundException($"Product {productId} not found");
+
+            var random=new Random();
 
             var inventories = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
 
@@ -257,8 +259,8 @@ namespace ManuBackend.Services
                     {
                         InventoryId = inventory.InventoryId,
                         MaterialName = materialName,
-                        AvailableQty = 0,  // ✅ Start at 0
-                        ThresholdQty = 0,  // ✅ Start at 0
+                        AvailableQty = random.Next(0, 30),  // ✅ Start at 0
+                        ThresholdQty = 10,
                         CreatedAt = DateTime.UtcNow
                     };
 
