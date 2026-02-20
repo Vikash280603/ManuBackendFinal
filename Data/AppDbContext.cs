@@ -64,6 +64,10 @@ namespace ManuBackend.Data
         public DbSet<Inventory> Inventories { get; set; }
         public DbSet<InventoryMaterial> InventoryMaterials { get; set; }
 
+        //Table for Work Orders
+
+        public DbSet<WorkOrder> WorkOrders { get; set; }
+
 
         // ---------------- MODEL CONFIGURATION ----------------
 
@@ -116,6 +120,16 @@ namespace ManuBackend.Data
             // This ensures:
             // ❌ Two users cannot register with the same email.
             // If they try, database will throw an error.
+
+
+            // -------------------- WORK ORDER CONFIGURATION --------------------  
+            modelBuilder.Entity<WorkOrder>(entity =>
+            {
+                entity.HasKey(w => w.WordOrderId); // Primary key
+                entity.Property(w=>w.Status)
+                .IsRequired()
+                .HasMaxLength(50);
+            });
 
 
             // NOTE:
