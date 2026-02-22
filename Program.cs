@@ -78,6 +78,12 @@ builder.Services.AddScoped<IProductService, ProductService>();
 // ✅ Inventory services  
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+// ✅ WorkOrder services 
+builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
+builder.Services.AddScoped<IWorkOrderServices, WorkOrderServices>();
+
+
 /*
 Why Dependency Injection?
 
