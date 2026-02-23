@@ -1,4 +1,6 @@
-﻿namespace ManuBackend.Services
+﻿using ManuBackend.DTOs;
+
+namespace ManuBackend.Services
 {
     public interface IWorkOrderService
     {
