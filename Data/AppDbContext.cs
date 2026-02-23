@@ -68,7 +68,7 @@ namespace ManuBackend.Data
 
         public DbSet<WorkOrder> WorkOrders { get; set; }
 
-
+        public DbSet<QualityCheck> QualityChecks { get; set; }
         // ---------------- MODEL CONFIGURATION ----------------
 
         // OnModelCreating is a method from DbContext.
@@ -131,7 +131,17 @@ namespace ManuBackend.Data
                 .HasMaxLength(50);
             });
 
+            modelBuilder.Entity<QualityCheck>(entity =>
+            {
+                entity.HasKey(q => q.QcId);
 
+                entity.Property(q => q.Result)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(q => q.Remarks)
+                    .HasMaxLength(1000);
+            });
             // NOTE:
             // Previously seed data (default users) was added here.
             // But it was removed because:
