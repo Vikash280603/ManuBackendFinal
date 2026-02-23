@@ -3,7 +3,7 @@
     public class WorkOrder
     {
         // Primary key - UUID format (string, not int)  
-        public string WordOrderId { get; set; }=string.Empty;
+        public string WorkOrderId { get; set; }=string.Empty;
 
         // Foreign key to Product  
         public int ProductId { get; set; }

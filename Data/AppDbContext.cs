@@ -125,7 +125,7 @@ namespace ManuBackend.Data
             // -------------------- WORK ORDER CONFIGURATION --------------------  
             modelBuilder.Entity<WorkOrder>(entity =>
             {
-                entity.HasKey(w => w.WordOrderId); // Primary key
+                entity.HasKey(w => w.WorkOrderId); // Primary key
                 entity.Property(w=>w.Status)
                 .IsRequired()
                 .HasMaxLength(50);

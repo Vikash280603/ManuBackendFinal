@@ -81,7 +81,7 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 
 // ✅ WorkOrder services 
 builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
-builder.Services.AddScoped<IWorkOrderServices, WorkOrderServices>();
+builder.Services.AddScoped<IWorkOrderService , WorkOrderService>();
 
 
 /*
@@ -230,7 +230,7 @@ Request flows through middleware one by one.
 */
 
 // Redirect HTTP → HTTPS
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 
 // IMPORTANT:

@@ -8,9 +8,9 @@ using ManuBackend.DTOs;
 
 namespace ManuBackend.Controllers
 {
-    [Authorize]
+    //[Authorize] lets have it later !
     [ApiController]
-    [Route("api/[contriller")]
+    [Route("api/[controller]")]
     public class WorkOrderController: ControllerBase
 
     {
