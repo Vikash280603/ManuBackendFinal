@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ManuBackend.Controllers;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 using ManuBackend.Services;

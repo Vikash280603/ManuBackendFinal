@@ -12,13 +12,12 @@
 
 
 // Gives access to IAuthService (Service layer)
-using ManuBackend.Services;
-
-// Gives access to ControllerBase, IActionResult, Http attributes
-using Microsoft.AspNetCore.Mvc;
-
 // Gives access to DTO classes (LoginDto, SignupDto)
 using ManuBackend.DTOs;
+using ManuBackend.Services;
+// Gives access to ControllerBase, IActionResult, Http attributes
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 
@@ -46,6 +45,7 @@ namespace ManuBackend.Controllers
     // /api/auth
     // -------------------------------------------------------------
     [Route("api/[controller]")]
+
     public class AuthController : ControllerBase
     {
         // -------------------------------------------------------------
@@ -85,6 +85,7 @@ namespace ManuBackend.Controllers
         // POST request to:
         // /api/auth/login
         [HttpPost("login")]
+        [EnableRateLimiting("fixed")]
 
         // Task<IActionResult>
         //
@@ -138,6 +139,7 @@ namespace ManuBackend.Controllers
 
         // POST /api/auth/signup
         [HttpPost("signup")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Signup([FromBody] SignupDto dto)
         {
             try

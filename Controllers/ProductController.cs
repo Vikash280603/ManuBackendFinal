@@ -13,9 +13,10 @@
 // -------------------------------------------------------------
 
 using ManuBackend.DTOs;              // DTO classes
+using ManuBackend.Services;          // IProductService
 using Microsoft.AspNetCore.Authorization;  // For [Authorize]
 using Microsoft.AspNetCore.Mvc;      // ControllerBase, IActionResult
-using ManuBackend.Services;          // IProductService
+using Microsoft.AspNetCore.RateLimiting;
 
 
 
@@ -119,6 +120,7 @@ namespace ManuBackend.Controllers
         // Data comes from request body
         // -------------------------------------------------------------
         [HttpPost]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> CreateProduct(
             [FromBody] CreateProductDto dto)
         {
