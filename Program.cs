@@ -18,8 +18,14 @@ using Microsoft.EntityFrameworkCore;
 // Required for JWT token validation classes
 using Microsoft.IdentityModel.Tokens;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 // Used to convert string → byte[] (needed for JWT secret key)
 using System.Text;
+
+using AspNetCoreRateLimit;
+
+using System.Threading.RateLimiting;
 
 
 
@@ -85,6 +91,23 @@ builder.Services.AddScoped<IWorkOrderService , WorkOrderService>();
 
 builder.Services.AddScoped<IQualityCheckRepository, QualityCheckRepository>();
 builder.Services.AddScoped<IQualityCheckService , QualityCheckService>();
+
+
+
+builder.Services.AddMemoryCache();
+builder.Services.AddRateLimiter(rateLimiterOptions =>
+{       
+    rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    rateLimiterOptions.AddFixedWindowLimiter("fixed", options =>
+    {
+        options.Window = TimeSpan.FromSeconds(10);
+        options.PermitLimit = 1;
+        options.QueueLimit = 0;
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+});
+
 
 
 /*
@@ -238,6 +261,8 @@ Request flows through middleware one by one.
 
 // IMPORTANT:
 // CORS must come BEFORE Authentication
+
+//app.UseIpRateLimiting();
 app.UseCors("AllowReactApp");
 
 
@@ -250,6 +275,8 @@ app.UseAuthorization();
 
 // Map controller routes (like /api/auth/login)
 app.MapControllers();
+
+app.UseRateLimiter();
 
 
 // Start the application
