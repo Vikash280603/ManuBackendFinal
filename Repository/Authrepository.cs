@@ -1,59 +1,158 @@
-﻿// This class implements IAuthRepository
-// A Repository is responsible for handling database operations
-// This class uses Entity Framework Core to communicate with the database
+﻿// ============================================================
+// AUTH REPOSITORY (DATA ACCESS LAYER)
+// ============================================================
+//
+// This class contains ACTUAL database code.
+// It talks directly to the database using Entity Framework Core.
+//
+// Responsibilities:
+// ✔ Fetch users from database
+// ✔ Insert new users
+// ✔ Check email existence
+//
+// IMPORTANT:
+// ❌ No business logic here
+// ❌ No password validation
+// ❌ No JWT generation
+//
+// Architecture:
+// Controller → Service → Repository → Database
+// ============================================================
 
+
+
+// ============================================================
+// USING STATEMENTS
+// ============================================================
+
+// Required for EF Core async database operations
 using Microsoft.EntityFrameworkCore;
-using System;
+
+// Gives access to AppDbContext
 using ManuBackend.Data;
+
+// Database entity (User)
 using ManuBackend.Models;
+
+
+
+// ============================================================
+// NAMESPACE
+// ============================================================
 
 namespace ManuBackend.Repository
 {
-    // AuthRepository contains the actual database logic for authentication-related operations
+    // =========================================================
+    // AUTH REPOSITORY IMPLEMENTATION
+    // =========================================================
+
+    // This class IMPLEMENTS IAuthRepository
+    //
+    // Because of this:
+    // ✔ It must implement all interface methods
+    // ✔ Compiler enforces correctness
     public class AuthRepository : IAuthRepository
     {
-        // AppDbContext represents the database session
-        // It is injected via Dependency Injection
+        // =====================================================
+        // PRIVATE FIELDS
+        // =====================================================
+
+        // AppDbContext represents:
+        // - Database connection
+        // - EF Core change tracking
+        // - Transaction scope
+        //
+        // Injected by Dependency Injection
         private readonly AppDbContext _context;
 
-        // Constructor - receives AppDbContext instance
+
+
+        // =====================================================
+        // CONSTRUCTOR (DEPENDENCY INJECTION)
+        // =====================================================
+
+        // ASP.NET Core automatically provides AppDbContext
+        // because it was registered in Program.cs
         public AuthRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        // -------------------- Get User By Email --------------------
-        // Searches for a user with the given email
-        // Returns null if no user is found
+
+
+        // =====================================================
+        // GET USER BY EMAIL
+        // =====================================================
+
+        // Used during LOGIN
+        //
+        // Returns:
+        // - User object if found
+        // - null if no user exists
         public async Task<User?> GetUserByEmailAsync(string email)
         {
+            // LINQ Query:
+            // - Translated into SQL by EF Core
+            //
             // FirstOrDefaultAsync:
-            // - Returns the first matching record
-            // - Returns null if no match exists
+            // - Returns first matching record
+            // - Returns null if nothing matches
+            //
+            // ToLower():
+            // - Makes comparison case-insensitive
             return await _context.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
-        // -------------------- Create New User --------------------
-        // Adds a new user record to the database
+
+
+        // =====================================================
+        // CREATE NEW USER
+        // =====================================================
+
+        // Used during SIGNUP
+        //
+        // Saves a new user record to database
         public async Task<User> CreateUserAsync(User user)
         {
-            // Adds the user to EF Core's change tracker
+            // Step 1:
+            // Add entity to EF Core Change Tracker
+            //
+            // At this point:
+            // ❌ No SQL is executed yet
             _context.Users.Add(user);
 
-            // Saves changes to the database
-            // This executes the INSERT SQL command
+
+
+            // Step 2:
+            // SaveChangesAsync():
+            // - Generates SQL INSERT command
+            // - Executes it against database
+            // - Updates user.Id with generated value
             await _context.SaveChangesAsync();
 
+
+
+            // Return saved entity
             return user;
         }
 
-        // -------------------- Check If Email Exists --------------------
-        // Returns true if a user with the email already exists
+
+
+        // =====================================================
+        // CHECK IF EMAIL EXISTS
+        // =====================================================
+
+        // Used during SIGNUP
+        //
+        // Returns:
+        // - true  → email already exists
+        // - false → email is available
         public async Task<bool> EmailExistsAsync(string email)
         {
-            // AnyAsync:
-            // - Returns true if at least one record matches the condition
+            // AnyAsync():
+            // - Stops searching after first match
+            // - Very efficient for existence checks
             return await _context.Users
                 .AnyAsync(u => u.Email.ToLower() == email.ToLower());
         }

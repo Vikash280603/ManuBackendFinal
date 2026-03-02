@@ -1,74 +1,103 @@
-﻿// -------------------------------------------------------------
-// CONTROLLER = ENTRY POINT OF HTTP REQUESTS
-// -------------------------------------------------------------
-// Controller receives HTTP requests from client (React/Postman),
-// calls Service layer,
-// and returns HTTP response.
+﻿// =============================================================
+// AUTH CONTROLLER
+// =============================================================
 //
-// Flow:
-// Client → Controller → Service → Repository → Database
-// -------------------------------------------------------------
-     
+// A Controller is the ENTRY POINT for HTTP requests.
+// It does NOT contain business logic or database code.
+//
+// Responsibility:
+// - Receive HTTP request
+// - Validate input
+// - Call Service layer
+// - Return proper HTTP response
+//
+// Request Flow:
+// Client (React / Postman)
+//   → Controller
+//     → Service
+//       → Repository
+//         → Database
+// =============================================================
 
 
-// Gives access to IAuthService (Service layer)
-// Gives access to DTO classes (LoginDto, SignupDto)
+
+// =============================================================
+// USING STATEMENTS
+// =============================================================
+
+// Contains DTO classes (LoginDto, SignupDto)
+// DTO = Data Transfer Object (used only for request/response)
 using ManuBackend.DTOs;
+
+// Contains business logic interface (IAuthService)
 using ManuBackend.Services;
-// Gives access to ControllerBase, IActionResult, Http attributes
+
+// Base controller features, routing, HTTP result types
 using Microsoft.AspNetCore.Mvc;
+
+// Enables Rate Limiting attributes
 using Microsoft.AspNetCore.RateLimiting;
 
 
 
+// =============================================================
+// NAMESPACE
+// =============================================================
+
+// Controllers are grouped under Controllers namespace
 namespace ManuBackend.Controllers
 {
-    // -------------------------------------------------------------
-    // [ApiController]
-    // Enables:
-    // 1. Automatic Model Validation
-    // 2. Automatic 400 Bad Request for invalid model
-    // 3. Automatic binding from body
-    // 4. Standard error formatting
-    // -------------------------------------------------------------
+    // =========================================================
+    // CONTROLLER ATTRIBUTES
+    // =========================================================
+
+    // [ApiController] tells ASP.NET Core:
+    //
+    // 1️⃣ Automatically validate request body
+    // 2️⃣ Automatically return 400 if model is invalid
+    // 3️⃣ Automatically bind JSON → C# object
+    // 4️⃣ Use standard API error responses
+    //
+    // Without this, you must manually check ModelState
     [ApiController]
 
-    // -------------------------------------------------------------
-    // [Route("api/[controller]")]
-    // Defines base URL for this controller.
+    // Defines base route for this controller
     //
-    // [controller] automatically becomes class name without "Controller"
+    // "api/[controller]" →
+    // [controller] = class name without "Controller"
     //
-    // So AuthController → "auth"
+    // AuthController → "auth"
     //
-    // Final Base URL:
+    // Final base URL:
     // /api/auth
-    // -------------------------------------------------------------
     [Route("api/[controller]")]
-
     public class AuthController : ControllerBase
     {
-        // -------------------------------------------------------------
-        // private = accessible only inside this class
-        // readonly = value cannot be changed after constructor
+        // =====================================================
+        // PRIVATE FIELDS
+        // =====================================================
+
+        // private  → accessible only inside this class
+        // readonly → value assigned once (constructor only)
         //
-        // IAuthService is interface (abstraction)
-        // Actual object injected by Dependency Injection
-        // -------------------------------------------------------------
+        // IAuthService is an INTERFACE.
+        // Actual implementation (AuthService) is injected by ASP.NET.
         private readonly IAuthService _authService;
 
 
-        // -------------------------------------------------------------
-        // Constructor
+
+        // =====================================================
+        // CONSTRUCTOR (DEPENDENCY INJECTION)
+        // =====================================================
+
+        // When a request comes to this controller,
+        // ASP.NET Core:
+        // 1️⃣ Creates AuthController
+        // 2️⃣ Looks at constructor parameters
+        // 3️⃣ Finds registered service for IAuthService
+        // 4️⃣ Injects AuthService instance automatically
         //
-        // When this controller is created,
-        // ASP.NET automatically injects IAuthService
-        // because we registered it in Program.cs:
-        //
-        // builder.Services.AddScoped<IAuthService, AuthService>();
-        //
-        // This is Dependency Injection.
-        // -------------------------------------------------------------
+        // This is called Dependency Injection (DI)
         public AuthController(IAuthService authService)
         {
             _authService = authService;
@@ -76,93 +105,118 @@ namespace ManuBackend.Controllers
 
 
 
-        // =============================================================
-        // -------------------- LOGIN ENDPOINT --------------------------
-        // =============================================================
+        // =====================================================
+        // LOGIN API
+        // =====================================================
 
         // [HttpPost("login")]
-        // This means:
-        // POST request to:
+        //
+        // This maps HTTP POST request to:
         // /api/auth/login
         [HttpPost("login")]
+
+        // Limits how frequently this endpoint can be called
+        // Protects against brute-force attacks
         [EnableRateLimiting("fixed")]
 
-        // Task<IActionResult>
+        // async → method runs asynchronously (non-blocking)
         //
-        // Task → because method is asynchronous (async)
-        // IActionResult → allows returning different HTTP responses
-        //
-        // async keyword → allows use of await
+        // Task<IActionResult> means:
+        // - Method returns later (Task)
+        // - Can return any HTTP response type (IActionResult)
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             // [FromBody] means:
-            // Read JSON from request body
+            // ASP.NET reads JSON from request body
+            // and converts it into LoginDto object
             //
-            // Example JSON:
+            // Example request JSON:
             // {
-            //   "email": "test@gmail.com",
+            //   "email": "user@gmail.com",
             //   "password": "123456"
             // }
 
             try
             {
-                // Call Service layer method
-                // await → wait until async operation completes
+                // Call Service layer
+                //
+                // await:
+                // - Pauses execution here
+                // - Does NOT block server thread
+                // - Continues when task completes
                 var response = await _authService.LoginAsync(dto);
 
-                // If success:
-                // Return 200 OK
+                // If login successful:
+                // Return HTTP 200 OK with response body
                 return Ok(response);
             }
 
-            // If service throws UnauthorizedAccessException
-            // That means wrong email or password
+            // This exception is intentionally thrown
+            // when email or password is wrong
             catch (UnauthorizedAccessException ex)
             {
-                // Return 401 Unauthorized
-                return Unauthorized(new { message = ex.Message });
+                // HTTP 401 Unauthorized
+                return Unauthorized(new
+                {
+                    message = ex.Message
+                });
             }
 
-            // Any unexpected error
+            // Catch any unexpected error
             catch (Exception ex)
             {
-                // Return 500 Internal Server Error
-                return StatusCode(500, new { message = ex.Message });
+                // HTTP 500 Internal Server Error
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
 
 
 
-        // =============================================================
-        // -------------------- SIGNUP ENDPOINT -------------------------
-        // =============================================================
+        // =====================================================
+        // SIGNUP API
+        // =====================================================
 
         // POST /api/auth/signup
         [HttpPost("signup")]
+
+        // Rate limit signup to avoid spam registrations
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Signup([FromBody] SignupDto dto)
         {
             try
             {
-                // Call Service layer to create user
+                // Call Service layer to create new user
                 var response = await _authService.SignupAsync(dto);
 
-                // 201 Created
-                // Used when new resource is created
+                // HTTP 201 Created
+                //
+                // Used when a new resource is created successfully
                 return StatusCode(201, response);
             }
 
-            // If email already exists
+            // Thrown when:
+            // - Email already exists
+            // - Business rule violation
             catch (InvalidOperationException ex)
             {
-                // 400 Bad Request
-                return BadRequest(new { message = ex.Message });
+                // HTTP 400 Bad Request
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
 
+            // Any unexpected server error
             catch (Exception ex)
             {
-                // Unexpected error
-                return StatusCode(500, new { message = ex.Message });
+                // HTTP 500 Internal Server Error
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
     }
