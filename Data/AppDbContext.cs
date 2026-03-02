@@ -1,108 +1,129 @@
-﻿// This using statement allows us to use Entity Framework Core classes
-// like DbContext, DbSet, ModelBuilder, etc.
-// Without this, EF Core-related classes will not be recognized.
-// This gives access to our Models folder (User, Product, BOM classes)
-// So we can use those classes inside this file.
+﻿// ============================================================
+// USING STATEMENTS
+// ============================================================
+
+// Gives access to model classes (User, Product, BOM, etc.)
 using ManuBackend.Models;
+
+// Required for Entity Framework Core (DbContext, DbSet, ModelBuilder)
 using Microsoft.EntityFrameworkCore;
 
-// Namespace = logical grouping of related classes
-// Here, this file belongs to the "Data" layer of the project.
-// Usually Data folder contains DbContext and database-related files.
+
+
+// ============================================================
+// NAMESPACE
+// ============================================================
+
+// Groups database-related classes together
+// Usually contains DbContext and migration files
 namespace ManuBackend.Data
 {
-    // AppDbContext is our main bridge between the application and the database.
-    // DbContext is a built-in EF Core class.
-    // By inheriting from DbContext, we get all database functionality.
+    // ========================================================
+    // DATABASE CONTEXT
+    // ========================================================
+
+    // AppDbContext is the main connection between:
+    // - Your C# classes (Models)
+    // - Your database tables
+    //
+    // DbContext is provided by Entity Framework Core.
+    // By inheriting from DbContext, we get:
+    // - Database connections
+    // - CRUD operations
+    // - Migrations support
     public class AppDbContext : DbContext
     {
-        // ---------------- CONSTRUCTOR ----------------
-        // It is used to initialize the object.
+        // ====================================================
+        // CONSTRUCTOR
+        // ====================================================
 
         // DbContextOptions<AppDbContext> contains:
         // - Connection string
-        // - Database provider (SQL Server, MySQL, etc.)
-        // - Other EF configuration settings
-
-        // These options are passed from Program.cs using Dependency Injection.
-        // "base(options)" means we are passing these options to the parent class (DbContext).
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        // - Database provider (SQL Server)
+        // - EF Core configuration
+        //
+        // These options are injected from Program.cs
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
-            // Nothing written here because all configuration
-            // is already handled by the base DbContext.
+            // No code needed here
+            // Base DbContext handles everything
         }
 
 
-        // ---------------- DbSet PROPERTIES ----------------
 
-        // DbSet<User> represents a table in the database.
-        // "User" = Model class
-        // "Users" = Table name in the database
+        // ====================================================
+        // DBSET PROPERTIES (DATABASE TABLES)
+        // ====================================================
 
-        // EF Core automatically creates a table named "Users"
-        // when we run migrations.
-
-        // This property allows us to:
-        // - Add users
-        // - Update users
-        // - Delete users
-        // - Query users
+        // DbSet<User> → Users table
+        // Each User object = one row in database
         public DbSet<User> Users { get; set; }
 
-
-        // This represents the "Products" table in the database.
-        // Each Product object becomes a row in the Products table.
+        // DbSet<Product> → Products table
         public DbSet<Product> Products { get; set; }
 
-
-        // This represents the "BOMs" table in the database.
-        // BOM = Bill Of Materials
-        // Each BOM object becomes a row in the BOMs table.
+        // DbSet<BOM> → BOMs table (Bill Of Materials)
         public DbSet<BOM> BOMs { get; set; }
 
-     
+        // Inventory tables
         public DbSet<Inventory> Inventories { get; set; }
         public DbSet<InventoryMaterial> InventoryMaterials { get; set; }
 
-        //Table for Work Orders
-
+        // Work Orders table
         public DbSet<WorkOrder> WorkOrders { get; set; }
 
+        // Quality Check table
         public DbSet<QualityCheck> QualityChecks { get; set; }
-        // ---------------- MODEL CONFIGURATION ----------------
 
-        // OnModelCreating is a method from DbContext.
-        // It is used to configure database rules and relationships.
 
-        // "override" means we are modifying behavior of a method
-        // that already exists in the parent class (DbContext).
+
+        // ====================================================
+        // MODEL CONFIGURATION (FLUENT API)
+        // ====================================================
+
+        // This method is called when EF Core builds the database model
+        // Used to configure:
+        // - Keys
+        // - Indexes
+        // - Relationships
+        // - Constraints
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Always call base method first
-            // so default configurations are not lost.
+            // Always call base method
             base.OnModelCreating(modelBuilder);
 
-            // modelBuilder is used to configure entities (tables).
 
-            // Here we are saying:
-            // For the User entity,
-            // create an INDEX on the Email column.
 
-            // What is an index?
-            // It makes searching faster and can enforce uniqueness.
+            // ====================================================
+            // USER CONFIGURATION
+            // ====================================================
 
-            modelBuilder.Entity<User>()  // Select the User entity
-                .HasIndex(u => u.Email)  // Create index on Email property
-                .IsUnique();             // Make it UNIQUE (no duplicates allowed)
-                                         // -------------------- INVENTORY CONFIGURATION --------------------  
+            // Create UNIQUE index on Email column
+            // This ensures:
+            // - No two users can have the same email
+            // - Faster search by email
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+
+
+            // ====================================================
+            // INVENTORY CONFIGURATION
+            // ====================================================
+
             modelBuilder.Entity<Inventory>(entity =>
             {
+                // Primary key
                 entity.HasKey(i => i.InventoryId);
 
+                // Location is mandatory and limited to 100 characters
                 entity.Property(i => i.Location)
                     .IsRequired()
                     .HasMaxLength(100);
 
+                // One Inventory → Many Materials
                 entity.HasMany(i => i.Materials)
                     .WithOne(m => m.Inventory)
                     .HasForeignKey(m => m.InventoryId)
@@ -111,43 +132,52 @@ namespace ManuBackend.Data
 
             modelBuilder.Entity<InventoryMaterial>(entity =>
             {
+                // Primary key
                 entity.HasKey(m => m.Id);
 
+                // Material name is mandatory
                 entity.Property(m => m.MaterialName)
                     .IsRequired()
                     .HasMaxLength(200);
             });
-            // This ensures:
-            // ❌ Two users cannot register with the same email.
-            // If they try, database will throw an error.
 
 
-            // -------------------- WORK ORDER CONFIGURATION --------------------  
+
+            // ====================================================
+            // WORK ORDER CONFIGURATION
+            // ====================================================
+
             modelBuilder.Entity<WorkOrder>(entity =>
             {
-                entity.HasKey(w => w.WorkOrderId); // Primary key
-                entity.Property(w=>w.Status)
-                .IsRequired()
-                .HasMaxLength(50);
+                // Primary key
+                entity.HasKey(w => w.WorkOrderId);
+
+                // Status is required (Planned, InProgress, Completed, etc.)
+                entity.Property(w => w.Status)
+                    .IsRequired()
+                    .HasMaxLength(50);
             });
+
+
+
+            // ====================================================
+            // QUALITY CHECK CONFIGURATION
+            // ====================================================
 
             modelBuilder.Entity<QualityCheck>(entity =>
             {
+                // Primary key
                 entity.HasKey(q => q.QcId);
 
+                // Result must be provided (Pass / Fail)
                 entity.Property(q => q.Result)
                     .IsRequired()
                     .HasMaxLength(10);
 
+                // Optional remarks
                 entity.Property(q => q.Remarks)
                     .HasMaxLength(1000);
             });
-            // NOTE:
-            // Previously seed data (default users) was added here.
-            // But it was removed because:
-            // - Password hashing generates different values each time
-            // - This caused migration inconsistencies
-            // Now users should be added through API registration.
         }
     }
 }
