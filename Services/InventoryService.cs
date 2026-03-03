@@ -242,8 +242,7 @@ namespace ManuBackend.Services
             if (product == null)
                 throw new KeyNotFoundException($"Product {productId} not found");
 
-            var random=new Random();
-
+            var random = new Random();
             var inventories = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
 
             foreach (var inventory in inventories)
@@ -251,15 +250,23 @@ namespace ManuBackend.Services
                 var bomMaterials = product.BOMs.Select(b => b.MaterialName).ToList();
                 var existingMaterials = inventory.Materials.Select(m => m.MaterialName).ToList();
 
-                // Add new materials
+                // ✅ FIX: Add new materials (only if NOT already in inventory)
                 var newMaterials = bomMaterials.Except(existingMaterials).ToList();
                 foreach (var materialName in newMaterials)
                 {
+                    // ✅ DOUBLE CHECK: Make sure material doesn't already exist
+                    var alreadyExists = inventory.Materials.Any(m => m.MaterialName == materialName);
+                    if (alreadyExists)
+                    {
+                        Console.WriteLine($"Material {materialName} already exists, skipping...");
+                        continue; // Skip if already exists
+                    }
+
                     var newMaterial = new InventoryMaterial
                     {
                         InventoryId = inventory.InventoryId,
                         MaterialName = materialName,
-                        AvailableQty = random.Next(0, 30),  // ✅ Start at 0
+                        AvailableQty = random.Next(0, 30),
                         ThresholdQty = 10,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -267,7 +274,7 @@ namespace ManuBackend.Services
                     await _inventoryRepo.CreateMaterialAsync(newMaterial);
                 }
 
-                // Remove old materials
+                // Remove old materials (materials in inventory but NOT in BOM anymore)
                 var removedMaterials = existingMaterials.Except(bomMaterials).ToList();
                 foreach (var materialName in removedMaterials)
                 {
