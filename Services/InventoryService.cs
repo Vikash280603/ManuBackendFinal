@@ -243,24 +243,28 @@ namespace ManuBackend.Services
                 throw new KeyNotFoundException($"Product {productId} not found");
 
             var random = new Random();
+
+            // ✅ Get inventories for this product
             var inventories = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
 
             foreach (var inventory in inventories)
             {
-                var bomMaterials = product.BOMs.Select(b => b.MaterialName).ToList();
-                var existingMaterials = inventory.Materials.Select(m => m.MaterialName).ToList();
+                // ✅ FIX: RELOAD inventory with materials from database (FRESH data!)
+                var freshInventory = await _inventoryRepo.GetInventoryByIdAsync(inventory.InventoryId);
+                if (freshInventory == null) continue;
 
-                // ✅ FIX: Add new materials (only if NOT already in inventory)
+                // Get BOM material names
+                var bomMaterials = product.BOMs.Select(b => b.MaterialName).ToList();
+
+                // ✅ Get existing material names from FRESH inventory (from database)
+                var existingMaterials = freshInventory.Materials.Select(m => m.MaterialName).ToList();
+
+                // ✅ Add new materials (materials in BOM but NOT in inventory)
                 var newMaterials = bomMaterials.Except(existingMaterials).ToList();
+
                 foreach (var materialName in newMaterials)
                 {
-                    // ✅ DOUBLE CHECK: Make sure material doesn't already exist
-                    var alreadyExists = inventory.Materials.Any(m => m.MaterialName == materialName);
-                    if (alreadyExists)
-                    {
-                        Console.WriteLine($"Material {materialName} already exists, skipping...");
-                        continue; // Skip if already exists
-                    }
+                    Console.WriteLine($"Adding new material: {materialName} to inventory {inventory.InventoryId}");
 
                     var newMaterial = new InventoryMaterial
                     {
@@ -274,13 +278,15 @@ namespace ManuBackend.Services
                     await _inventoryRepo.CreateMaterialAsync(newMaterial);
                 }
 
-                // Remove old materials (materials in inventory but NOT in BOM anymore)
+                // ✅ Remove old materials (materials in inventory but NOT in BOM)
                 var removedMaterials = existingMaterials.Except(bomMaterials).ToList();
+
                 foreach (var materialName in removedMaterials)
                 {
-                    var material = inventory.Materials.FirstOrDefault(m => m.MaterialName == materialName);
+                    var material = freshInventory.Materials.FirstOrDefault(m => m.MaterialName == materialName);
                     if (material != null)
                     {
+                        Console.WriteLine($"Removing old material: {materialName} from inventory {inventory.InventoryId}");
                         await _inventoryRepo.DeleteMaterialAsync(material.Id);
                     }
                 }
