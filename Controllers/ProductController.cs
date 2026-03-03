@@ -53,11 +53,10 @@ namespace ManuBackend.Controllers
     // → Requires VALID JWT token for ALL endpoints in this controller
     //
     // [AllowAnonymous]
-    // → Anyone can access without token
-    //
-    // Currently using AllowAnonymous for development/testing
+    // Means anyone can access without token.
+    // -------------------------------------------------------------
     [Authorize]
-   // [AllowAnonymous]
+    //[AllowAnonymous]
 
     // -------------------------------------------------------------
     // [ApiController]
