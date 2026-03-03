@@ -1,16 +1,37 @@
-﻿using ManuBackend.DTOs;
+﻿// =============================================================
+// QUALITY CHECK SERVICE
+// =============================================================
+//
+// Service layer responsibilities:
+// ✅ Business rules & validations
+// ✅ Coordinate multiple repositories
+// ✅ DTO ↔ Entity mapping
+//
+// IMPORTANT INTERVIEW POINTS:
+// ❌ No HTTP logic here
+// ❌ No DbContext here
+// ❌ No direct database calls
+// ✅ Talks ONLY to repositories
+// =============================================================
+
+using ManuBackend.DTOs;
 using ManuBackend.Models;
 using ManuBackend.Repository;
 using ManuBackend.Services;
-
 
 namespace ManuBackend.Services
 {
     public class QualityCheckService : IQualityCheckService
     {
+        // Repository for QualityCheck entity
         private readonly IQualityCheckRepository _qcRepo;
+
+        // Repository for WorkOrder entity
+        // Used to validate work order state
         private readonly IWorkOrderRepository _workOrderRepo;
 
+        // -------------------- CONSTRUCTOR --------------------
+        // Repositories are injected using Dependency Injection (DI)
         public QualityCheckService(
             IQualityCheckRepository qcRepo,
             IWorkOrderRepository workOrderRepo)
@@ -19,12 +40,17 @@ namespace ManuBackend.Services
             _workOrderRepo = workOrderRepo;
         }
 
-        // -------------------- READ OPERATIONS --------------------
+        // =====================================================
+        // READ OPERATIONS
+        // =====================================================
 
+        // -------------------- GET ALL QUALITY CHECKS --------------------
         public async Task<List<QualityCheckDto>> GetAllQualityChecksAsync()
         {
+            // Fetch entities from repository
             var qualityChecks = await _qcRepo.GetAllQualityChecksAsync();
 
+            // Map Entity → DTO
             return qualityChecks.Select(q => new QualityCheckDto
             {
                 QcId = q.QcId,
@@ -41,6 +67,7 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
+        // -------------------- GET QUALITY CHECK BY QC ID --------------------
         public async Task<QualityCheckDto?> GetQualityCheckByIdAsync(string qcId)
         {
             var qualityCheck = await _qcRepo.GetQualityCheckByIdAsync(qcId);
@@ -62,6 +89,7 @@ namespace ManuBackend.Services
             };
         }
 
+        // -------------------- GET QUALITY CHECK BY WORK ORDER ID --------------------
         public async Task<QualityCheckDto?> GetQualityCheckByWorkOrderIdAsync(string workOrderId)
         {
             var qualityCheck = await _qcRepo.GetQualityCheckByWorkOrderIdAsync(workOrderId);
@@ -83,6 +111,8 @@ namespace ManuBackend.Services
             };
         }
 
+        // -------------------- GET QUALITY CHECKS BY RESULT --------------------
+        // Example result values: PASS / FAIL
         public async Task<List<QualityCheckDto>> GetQualityChecksByResultAsync(string result)
         {
             var qualityChecks = await _qcRepo.GetQualityChecksByResultAsync(result);
@@ -103,38 +133,56 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
-        // -------------------- CREATE OPERATION --------------------
+        // =====================================================
+        // CREATE OPERATION (BUSINESS LOGIC HEAVY)
+        // =====================================================
 
         public async Task<QualityCheckDto> CreateQualityCheckAsync(CreateQualityCheckDto dto)
         {
-            // Verify work order exists and is COMPLETED
+            // -------------------- VALIDATION: WORK ORDER --------------------
+
+            // Verify work order exists
             var workOrder = await _workOrderRepo.GetWorkOrderByIdAsync(dto.WorkOrderId);
             if (workOrder == null)
                 throw new KeyNotFoundException($"Work Order {dto.WorkOrderId} not found");
 
+            // Only COMPLETED work orders can be quality checked
             if (workOrder.Status != "COMPLETED")
                 throw new InvalidOperationException("Only COMPLETED work orders can be inspected");
 
-            // Check if quality check already exists for this work order
+            // -------------------- VALIDATION: DUPLICATE QC --------------------
+
+            // Ensure no duplicate quality check exists
             var existing = await _qcRepo.GetQualityCheckByWorkOrderIdAsync(dto.WorkOrderId);
             if (existing != null)
                 throw new InvalidOperationException("Quality check already exists for this work order");
 
-            // Validate accepted quantity
+            // -------------------- VALIDATION: QUANTITY --------------------
+
             if (dto.AcceptedQty > workOrder.Quantity)
                 throw new InvalidOperationException("Accepted quantity cannot exceed total quantity");
 
-            // Calculate metrics
+            // -------------------- CALCULATIONS --------------------
+
             int totalQty = workOrder.Quantity;
             int acceptedQty = dto.AcceptedQty;
             int rejectedQty = totalQty - acceptedQty;
-            int successRate = totalQty > 0 ? (int)Math.Round((double)acceptedQty / totalQty * 100) : 0;
+
+            int successRate =
+                totalQty > 0
+                    ? (int)Math.Round((double)acceptedQty / totalQty * 100)
+                    : 0;
+
+            // Business rule:
+            // >= 90% → PASS
+            // < 90% → FAIL
             string result = successRate >= 90 ? "PASS" : "FAIL";
 
-            // Generate QC ID
+            // -------------------- QC ID GENERATION --------------------
+            // Example: QC-1700000000000
             string qcId = $"QC-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
 
-            // Create quality check
+            // -------------------- CREATE ENTITY --------------------
             var qualityCheck = new QualityCheck
             {
                 QcId = qcId,
@@ -150,12 +198,14 @@ namespace ManuBackend.Services
                 CreatedAt = DateTime.UtcNow
             };
 
+            // Save to database
             var saved = await _qcRepo.CreateQualityCheckAsync(qualityCheck);
 
-            // Update work order status to QUALITY_DONE
+            // -------------------- UPDATE WORK ORDER STATUS --------------------
             workOrder.Status = "QUALITY_DONE";
             await _workOrderRepo.UpdateWorkOrderAsync(workOrder);
 
+            // -------------------- RETURN DTO --------------------
             return new QualityCheckDto
             {
                 QcId = saved.QcId,
@@ -172,7 +222,9 @@ namespace ManuBackend.Services
             };
         }
 
-        // -------------------- DELETE OPERATION --------------------
+        // =====================================================
+        // DELETE OPERATION
+        // =====================================================
 
         public async Task<bool> DeleteQualityCheckAsync(string qcId)
         {

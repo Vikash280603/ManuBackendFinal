@@ -2,43 +2,67 @@
 using ManuBackend.Models;
 using ManuBackend.Repository;
 
-using ManuBackend.DTOs;
-using ManuBackend.Models;
-using ManuBackend.Repository;
-
 namespace ManuBackend.Services
 {
+    // SERVICE IMPLEMENTATION
+    // ----------------------
+    // InventoryService contains BUSINESS LOGIC
+    // It sits between Controller and Repository
     public class InventoryService : IInventoryService
     {
+        // Repository for inventory-related DB operations
         private readonly IInventoryRepository _inventoryRepo;
+
+        // Repository for product & BOM data
         private readonly IProductRepository _productRepo;
 
-        private readonly string[] _locations = { "Chennai", "Coimbatore", "Bangalore", "Hyderabad" };
+        // Predefined warehouse locations
+        // Used while auto-generating inventories
+        private readonly string[] _locations =
+        {
+            "Chennai",
+            "Coimbatore",
+            "Bangalore",
+            "Hyderabad"
+        };
 
-        public InventoryService(IInventoryRepository inventoryRepo, IProductRepository productRepo)
+        // Constructor Dependency Injection
+        public InventoryService(
+            IInventoryRepository inventoryRepo,
+            IProductRepository productRepo)
         {
             _inventoryRepo = inventoryRepo;
             _productRepo = productRepo;
         }
 
-        // -------------------- READ OPERATIONS --------------------
+        // ============================================================
+        // READ OPERATIONS
+        // ============================================================
 
+        // Get all inventories
+        // Auto-generates inventories if none exist
         public async Task<List<InventoryDto>> GetAllInventoriesAsync()
         {
+            // Fetch inventories from database
             var inventories = await _inventoryRepo.GetAllInventoriesAsync();
 
+            // SAFETY LOGIC:
+            // If inventory table is empty, generate inventory automatically
             if (!inventories.Any())
             {
                 await GenerateInventoriesAsync();
                 inventories = await _inventoryRepo.GetAllInventoriesAsync();
             }
 
+            // Convert Entity models → DTOs
             return inventories.Select(i => new InventoryDto
             {
                 InventoryId = i.InventoryId,
                 ProductId = i.ProductId,
                 Location = i.Location,
                 CreatedAt = i.CreatedAt,
+
+                // Nested mapping for materials
                 Materials = i.Materials.Select(m => new InventoryMaterialDto
                 {
                     Id = m.Id,
@@ -51,6 +75,7 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
+        // Get inventory by InventoryId
         public async Task<InventoryDto?> GetInventoryByIdAsync(int inventoryId)
         {
             var inventory = await _inventoryRepo.GetInventoryByIdAsync(inventoryId);
@@ -74,6 +99,7 @@ namespace ManuBackend.Services
             };
         }
 
+        // Get inventories by ProductId
         public async Task<List<InventoryDto>> GetInventoriesByProductIdAsync(int productId)
         {
             var inventories = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
@@ -96,20 +122,28 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
-        // -------------------- UPDATE OPERATIONS --------------------
+        // ============================================================
+        // UPDATE OPERATIONS
+        // ============================================================
 
-        public async Task<InventoryMaterialDto> UpdateMaterialAsync(int materialId, UpdateInventoryMaterialDto dto)
+        // Update material quantities & thresholds
+        public async Task<InventoryMaterialDto> UpdateMaterialAsync(
+            int materialId,
+            UpdateInventoryMaterialDto dto)
         {
+            // Fetch material
             var material = await _inventoryRepo.GetMaterialByIdAsync(materialId);
             if (material == null)
                 throw new KeyNotFoundException($"Material {materialId} not found");
 
+            // Update only provided fields
             if (dto.AvailableQty.HasValue)
                 material.AvailableQty = dto.AvailableQty.Value;
 
             if (dto.ThresholdQty.HasValue)
                 material.ThresholdQty = dto.ThresholdQty.Value;
 
+            // Persist changes
             var updated = await _inventoryRepo.UpdateMaterialAsync(material);
 
             return new InventoryMaterialDto
@@ -123,12 +157,16 @@ namespace ManuBackend.Services
             };
         }
 
-        public async Task<InventoryMaterialDto> AdjustMaterialQuantityAsync(int materialId, int delta)
+        // Adjust material quantity (+ / -)
+        public async Task<InventoryMaterialDto> AdjustMaterialQuantityAsync(
+            int materialId,
+            int delta)
         {
             var material = await _inventoryRepo.GetMaterialByIdAsync(materialId);
             if (material == null)
                 throw new KeyNotFoundException($"Material {materialId} not found");
 
+            // Prevent negative stock
             material.AvailableQty = Math.Max(0, material.AvailableQty + delta);
 
             var updated = await _inventoryRepo.UpdateMaterialAsync(material);
@@ -144,6 +182,7 @@ namespace ManuBackend.Services
             };
         }
 
+        // Get materials below threshold
         public async Task<List<InventoryMaterialDto>> GetLowStockMaterialsAsync()
         {
             var materials = await _inventoryRepo.GetLowStockMaterialsAsync();
@@ -159,40 +198,47 @@ namespace ManuBackend.Services
             }).ToList();
         }
 
-        // -------------------- ADMIN OPERATIONS --------------------
+        // ============================================================
+        // ADMIN OPERATIONS
+        // ============================================================
 
-        // ✅ FIXED: Only creates ONE inventory per product at random location
+        // Auto-generate inventory for ACTIVE products
         public async Task<int> GenerateInventoriesAsync()
         {
             var products = await _productRepo.GetAllProductsAsync();
-            var activeProducts = products.Where(p => p.Status == "ACTIVE").ToList();
+            var activeProducts = products
+                .Where(p => p.Status == "ACTIVE")
+                .ToList();
 
             int count = 0;
             var random = new Random();
 
             foreach (var product in activeProducts)
             {
-                // ✅ FIX: Check if product has ANY inventory
-                var existing = await _inventoryRepo.GetInventoriesByProductIdAsync(product.Id);
+                // Check if inventory already exists
+                var existing = await _inventoryRepo
+                    .GetInventoriesByProductIdAsync(product.Id);
 
-                // Only create if product has NO inventory at all
                 if (!existing.Any())
                 {
-                    // Pick one random location
-                    var randomLocation = _locations[random.Next(_locations.Length)];
+                    var randomLocation =
+                        _locations[random.Next(_locations.Length)];
 
                     var inventory = new Inventory
                     {
                         ProductId = product.Id,
                         Location = randomLocation,
                         CreatedAt = DateTime.UtcNow,
-                        Materials = product.BOMs.Select(bom => new InventoryMaterial
-                        {
-                            MaterialName = bom.MaterialName,
-                            AvailableQty = random.Next(0,30),  // ✅ Start at 0
-                            ThresholdQty = 10,  // ✅ Start at 0
-                            CreatedAt = DateTime.UtcNow
-                        }).ToList()
+
+                        // Create inventory materials from BOM
+                        Materials = product.BOMs.Select(bom =>
+                            new InventoryMaterial
+                            {
+                                MaterialName = bom.MaterialName,
+                                AvailableQty = random.Next(0, 30),
+                                ThresholdQty = 10,
+                                CreatedAt = DateTime.UtcNow
+                            }).ToList()
                     };
 
                     await _inventoryRepo.CreateInventoryAsync(inventory);
@@ -203,92 +249,84 @@ namespace ManuBackend.Services
             return count;
         }
 
-        // ✅ NEW: Create inventory for a single product (called when new product created)
+        // Create inventory for a single product
         public async Task CreateInventoryForProductAsync(int productId)
         {
             var product = await _productRepo.GetProductByIdAsync(productId);
             if (product == null || product.Status != "ACTIVE")
                 return;
 
-            // Check if inventory already exists
-            var existing = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
-            if (existing.Any())
-                return; // Already has inventory
+            var existing =
+                await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
+            if (existing.Any()) return;
 
-            // Pick random location
             var random = new Random();
-            var randomLocation = _locations[random.Next(_locations.Length)];
+            var randomLocation =
+                _locations[random.Next(_locations.Length)];
 
             var inventory = new Inventory
             {
                 ProductId = product.Id,
                 Location = randomLocation,
                 CreatedAt = DateTime.UtcNow,
-                Materials = product.BOMs.Select(bom => new InventoryMaterial
-                {
-                    MaterialName = bom.MaterialName,
-                    AvailableQty = random.Next(0, 30),  // ✅ Start at 0
-                    ThresholdQty = 10,
-                    CreatedAt = DateTime.UtcNow
-                }).ToList()
+                Materials = product.BOMs.Select(bom =>
+                    new InventoryMaterial
+                    {
+                        MaterialName = bom.MaterialName,
+                        AvailableQty = random.Next(0, 30),
+                        ThresholdQty = 10,
+                        CreatedAt = DateTime.UtcNow
+                    }).ToList()
             };
 
             await _inventoryRepo.CreateInventoryAsync(inventory);
         }
 
+        // Sync inventory materials with BOM
         public async Task SyncInventoryMaterialsAsync(int productId)
         {
             var product = await _productRepo.GetProductByIdAsync(productId);
             if (product == null)
                 throw new KeyNotFoundException($"Product {productId} not found");
 
-            var random = new Random();
-
-            // ✅ Get inventories for this product
-            var inventories = await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
+            var inventories =
+                await _inventoryRepo.GetInventoriesByProductIdAsync(productId);
 
             foreach (var inventory in inventories)
             {
-                // ✅ FIX: RELOAD inventory with materials from database (FRESH data!)
-                var freshInventory = await _inventoryRepo.GetInventoryByIdAsync(inventory.InventoryId);
+                var freshInventory =
+                    await _inventoryRepo.GetInventoryByIdAsync(inventory.InventoryId);
                 if (freshInventory == null) continue;
 
-                // Get BOM material names
-                var bomMaterials = product.BOMs.Select(b => b.MaterialName).ToList();
+                var bomMaterials =
+                    product.BOMs.Select(b => b.MaterialName).ToList();
 
-                // ✅ Get existing material names from FRESH inventory (from database)
-                var existingMaterials = freshInventory.Materials.Select(m => m.MaterialName).ToList();
+                var existingMaterials =
+                    freshInventory.Materials.Select(m => m.MaterialName).ToList();
 
-                // ✅ Add new materials (materials in BOM but NOT in inventory)
-                var newMaterials = bomMaterials.Except(existingMaterials).ToList();
-
-                foreach (var materialName in newMaterials)
+                // Add missing materials
+                foreach (var materialName in bomMaterials.Except(existingMaterials))
                 {
-                    Console.WriteLine($"Adding new material: {materialName} to inventory {inventory.InventoryId}");
-
-                    var newMaterial = new InventoryMaterial
-                    {
-                        InventoryId = inventory.InventoryId,
-                        MaterialName = materialName,
-                        AvailableQty = random.Next(0, 30),
-                        ThresholdQty = 10,
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    await _inventoryRepo.CreateMaterialAsync(newMaterial);
+                    await _inventoryRepo.CreateMaterialAsync(
+                        new InventoryMaterial
+                        {
+                            InventoryId = inventory.InventoryId,
+                            MaterialName = materialName,
+                            AvailableQty = new Random().Next(0, 30),
+                            ThresholdQty = 10,
+                            CreatedAt = DateTime.UtcNow
+                        });
                 }
 
-                // ✅ Remove old materials (materials in inventory but NOT in BOM)
-                var removedMaterials = existingMaterials.Except(bomMaterials).ToList();
-
-                foreach (var materialName in removedMaterials)
+                // Remove obsolete materials
+                foreach (var materialName in existingMaterials.Except(bomMaterials))
                 {
-                    var material = freshInventory.Materials.FirstOrDefault(m => m.MaterialName == materialName);
+                    var material =
+                        freshInventory.Materials
+                        .FirstOrDefault(m => m.MaterialName == materialName);
+
                     if (material != null)
-                    {
-                        Console.WriteLine($"Removing old material: {materialName} from inventory {inventory.InventoryId}");
                         await _inventoryRepo.DeleteMaterialAsync(material.Id);
-                    }
                 }
             }
         }

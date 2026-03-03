@@ -24,5 +24,10 @@ namespace ManuBackend.Models
         // Navigation property - EF Core uses this to link to BOM items  
         // One product can have many BOM items  
         public virtual ICollection<BOM> BOMs { get; set; } = new List<BOM>();
+        // virtual → enables lazy loading (if enabled)
+        // ICollection → EF-friendly collection type
+        //
+        // Example:
+        // One Product → Multiple BOM rows
     }
 }

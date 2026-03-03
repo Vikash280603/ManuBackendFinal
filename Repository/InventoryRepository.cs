@@ -1,92 +1,118 @@
-﻿
-using ManuBackend.Data;
+﻿using ManuBackend.Data;
 using ManuBackend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ManuBackend.Repository
 {
+    // Repository = Database access layer
+    // ONLY talks to DbContext
+    // NO business logic here
+    public class InventoryRepository : IInventoryRepository
+    {
+        // EF Core DbContext
+        private readonly AppDbContext _context;
 
-
-   
-        public class InventoryRepository : IInventoryRepository
+        // Constructor Injection
+        public InventoryRepository(AppDbContext context)
         {
-            private readonly AppDbContext _context;
+            _context = context;
+        }
 
-            public InventoryRepository(AppDbContext context)
-            {
-                _context = context;
-            }
+        // -------------------- INVENTORY OPERATIONS --------------------
 
-            // -------------------- INVENTORY OPERATIONS --------------------  
+        // Get ALL inventory records
+        public async Task<List<Inventory>> GetAllInventoriesAsync()
+        {
+            return await _context.Inventories
 
-            public async Task<List<Inventory>> GetAllInventoriesAsync()
-            {
-                return await _context.Inventories
-                    .Include(i => i.Materials)
-                    .OrderByDescending(i => i.CreatedAt)
-                    .ToListAsync();
-            }
+                // Include Materials table (Eager Loading)
+                .Include(i => i.Materials)
 
-            public async Task<Inventory?> GetInventoryByIdAsync(int inventoryId)
-            {
-                return await _context.Inventories
-                    .Include(i => i.Materials)
-                    .FirstOrDefaultAsync(i => i.InventoryId == inventoryId);
-            }
+                // Latest inventory first
+                .OrderByDescending(i => i.CreatedAt)
 
-            public async Task<List<Inventory>> GetInventoriesByProductIdAsync(int productId)
-            {
-                return await _context.Inventories
-                    .Include(i => i.Materials)
-                    .Where(i => i.ProductId == productId)
-                    .ToListAsync();
-            }
+                // Execute query and return list
+                .ToListAsync();
+        }
 
-            public async Task<Inventory> CreateInventoryAsync(Inventory inventory)
-            {
-                _context.Inventories.Add(inventory);
-                await _context.SaveChangesAsync();
-                return inventory;
-            }
+        // Get ONE inventory by InventoryId
+        public async Task<Inventory?> GetInventoryByIdAsync(int inventoryId)
+        {
+            return await _context.Inventories
+                .Include(i => i.Materials)
+                .FirstOrDefaultAsync(i => i.InventoryId == inventoryId);
+        }
 
-            // -------------------- MATERIAL OPERATIONS --------------------  
+        // Get inventories for a specific product
+        public async Task<List<Inventory>> GetInventoriesByProductIdAsync(int productId)
+        {
+            return await _context.Inventories
+                .Include(i => i.Materials)
+                .Where(i => i.ProductId == productId)
+                .ToListAsync();
+        }
 
-            public async Task<InventoryMaterial?> GetMaterialByIdAsync(int materialId)
-            {
-                return await _context.InventoryMaterials.FindAsync(materialId);
-            }
+        // Create new inventory record
+        public async Task<Inventory> CreateInventoryAsync(Inventory inventory)
+        {
+            _context.Inventories.Add(inventory);
+            await _context.SaveChangesAsync();
+            return inventory;
+        }
 
-            public async Task<InventoryMaterial> CreateMaterialAsync(InventoryMaterial material)
-            {
-                _context.InventoryMaterials.Add(material);
-                await _context.SaveChangesAsync();
-                return material;
-            }
+        // -------------------- MATERIAL OPERATIONS --------------------
 
-            public async Task<InventoryMaterial> UpdateMaterialAsync(InventoryMaterial material)
-            {
-                _context.InventoryMaterials.Update(material);
-                await _context.SaveChangesAsync();
-                return material;
-            }
+        // Get material by MaterialId
+        public async Task<InventoryMaterial?> GetMaterialByIdAsync(int materialId)
+        {
+            // FindAsync uses Primary Key
+            return await _context.InventoryMaterials.FindAsync(materialId);
+        }
 
-            public async Task<bool> DeleteMaterialAsync(int materialId)
-            {
-                var material = await _context.InventoryMaterials.FindAsync(materialId);
-                if (material == null) return false;
+        // Create new inventory material
+        public async Task<InventoryMaterial> CreateMaterialAsync(InventoryMaterial material)
+        {
+            _context.InventoryMaterials.Add(material);
+            await _context.SaveChangesAsync();
+            return material;
+        }
 
-                _context.InventoryMaterials.Remove(material);
-                await _context.SaveChangesAsync();
-                return true;
-            }
+        // Update material quantity or threshold
+        public async Task<InventoryMaterial> UpdateMaterialAsync(InventoryMaterial material)
+        {
+            _context.InventoryMaterials.Update(material);
+            await _context.SaveChangesAsync();
+            return material;
+        }
 
-            public async Task<List<InventoryMaterial>> GetLowStockMaterialsAsync()
-            {
-                return await _context.InventoryMaterials
-                    .Include(m => m.Inventory)
-                    .Where(m => m.AvailableQty < m.ThresholdQty)
-                    .OrderBy(m => m.AvailableQty)
-                    .ToListAsync();
-            }
+        // Delete material by ID
+        public async Task<bool> DeleteMaterialAsync(int materialId)
+        {
+            var material = await _context.InventoryMaterials.FindAsync(materialId);
+
+            if (material == null)
+                return false;
+
+            _context.InventoryMaterials.Remove(material);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // Get materials where stock is LOW
+        public async Task<List<InventoryMaterial>> GetLowStockMaterialsAsync()
+        {
+            return await _context.InventoryMaterials
+
+                // Include Inventory details
+                .Include(m => m.Inventory)
+
+                // Business condition for low stock
+                .Where(m => m.AvailableQty < m.ThresholdQty)
+
+                // Lowest stock first
+                .OrderBy(m => m.AvailableQty)
+
+                .ToListAsync();
         }
     }
+}
