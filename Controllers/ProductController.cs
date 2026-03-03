@@ -30,8 +30,8 @@ namespace ManuBackend.Controllers
     // [AllowAnonymous]
     // Means anyone can access without token.
     // -------------------------------------------------------------
-    //[Authorize]
-    [AllowAnonymous]
+    [Authorize]
+    //[AllowAnonymous]
 
     // Enables automatic model validation and better API behavior
     [ApiController]
