@@ -1,65 +1,122 @@
-﻿// -------------------------------------------------------------
+﻿// =============================================================
 // PRODUCTS CONTROLLER
-// -------------------------------------------------------------
-// This controller handles all Product and BOM related HTTP requests.
+// =============================================================
+// This controller is the ENTRY POINT for all Product & BOM APIs
 //
-// Flow:
-// Client (React/Postman)
+// IMPORTANT RULE:
+// - Controller NEVER contains business logic
+// - Controller NEVER talks to DbContext directly
+//
+// It ONLY:
+// 1️⃣ Accepts HTTP requests
+// 2️⃣ Validates input
+// 3️⃣ Calls Service layer
+// 4️⃣ Returns HTTP responses
+//
+// REQUEST FLOW:
+// Client (React / Postman)
 // → ProductsController
-// → ProductService
-// → ProductRepository
+// → ProductService (business rules)
+// → ProductRepository (database queries)
 // → DbContext
 // → Database
-// -------------------------------------------------------------
+// =============================================================
 
-using ManuBackend.DTOs;              // DTO classes
-using ManuBackend.Services;          // IProductService
-using Microsoft.AspNetCore.Authorization;  // For [Authorize]
-using Microsoft.AspNetCore.Mvc;      // ControllerBase, IActionResult
+
+// ============================
+// USING STATEMENTS
+// ============================
+
+// DTOs used for request & response
+using ManuBackend.DTOs;
+
+// Service layer interface
+using ManuBackend.Services;
+
+// For authorization attributes like [Authorize], [AllowAnonymous]
+using Microsoft.AspNetCore.Authorization;
+
+// Base controller features & HTTP responses
+using Microsoft.AspNetCore.Mvc;
+
+// Rate limiting support
 using Microsoft.AspNetCore.RateLimiting;
-
 
 
 namespace ManuBackend.Controllers
 {
-    // -------------------------------------------------------------
+    // =============================================================
+    // AUTHORIZATION CONFIGURATION
+    // =============================================================
+
     // [Authorize]
-    // Requires valid JWT token for all endpoints.
-    // Currently commented out.
+    // → Requires VALID JWT token for ALL endpoints in this controller
     //
     // [AllowAnonymous]
-    // Means anyone can access without token.
-    // -------------------------------------------------------------
-    //[Authorize]
-    [AllowAnonymous]
+    // → Anyone can access without token
+    //
+    // Currently using AllowAnonymous for development/testing
+    [Authorize]
+   // [AllowAnonymous]
 
-    // Enables automatic model validation and better API behavior
+    // -------------------------------------------------------------
+    // [ApiController]
+    // Enables:
+    // ✔ Automatic model validation
+    // ✔ Automatic 400 Bad Request on invalid DTO
+    // ✔ Automatic JSON → DTO binding
+    // ✔ Standard error responses
+    // -------------------------------------------------------------
     [ApiController]
 
+    // -------------------------------------------------------------
     // Base route:
+    // api/[controller]
+    //
+    // Controller name = ProductsController
+    // [controller] = "products"
+    //
+    // Base URL:
     // /api/products
+    // -------------------------------------------------------------
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
-        // Dependency Injection of Service layer
+        // =============================================================
+        // DEPENDENCY INJECTION (SERVICE LAYER)
+        // =============================================================
+
+        // private  → accessible only inside this controller
+        // readonly → assigned once via constructor
+        //
+        // IProductService = abstraction
+        // Actual implementation injected by ASP.NET Core
         private readonly IProductService _productService;
 
-        // Constructor
+        // -------------------------------------------------------------
+        // CONSTRUCTOR
+        // -------------------------------------------------------------
+        // ASP.NET Core automatically injects IProductService
+        // because it is registered in Program.cs
         public ProductsController(IProductService productService)
         {
             _productService = productService;
         }
 
 
-
         // =============================================================
-        // -------------------- PRODUCT ENDPOINTS -----------------------
+        // =================== PRODUCT ENDPOINTS =======================
         // =============================================================
 
         // -------------------------------------------------------------
         // GET /api/products?searchTerm=hammer
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Fetch all products
+        // - Optionally filter by search term
         //
-        // [FromQuery] means value comes from URL query string.
+        // [FromQuery] → value comes from URL query string
+        //
         // Example:
         // /api/products?searchTerm=drill
         // -------------------------------------------------------------
@@ -69,25 +126,30 @@ namespace ManuBackend.Controllers
         {
             try
             {
+                // Call service layer
                 var products =
                     await _productService.GetAllProductsAsync(searchTerm);
 
-                return Ok(products); // 200 OK
+                // HTTP 200 OK
+                return Ok(products);
             }
             catch (Exception ex)
             {
+                // HTTP 500 Internal Server Error
                 return StatusCode(500,
                     new { message = ex.Message });
             }
         }
 
 
-
         // -------------------------------------------------------------
         // GET /api/products/5
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Fetch single product by ID
         //
-        // {id} is route parameter
-        // ASP.NET automatically maps it to method parameter
+        // {id} is a ROUTE PARAMETER
+        // ASP.NET automatically maps it to method argument
         // -------------------------------------------------------------
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id)
@@ -97,7 +159,7 @@ namespace ManuBackend.Controllers
                 var product =
                     await _productService.GetProductByIdAsync(id);
 
-                // If not found → return 404
+                // If product does not exist → 404
                 if (product == null)
                     return NotFound(
                         new { message = $"Product with ID {id} not found" });
@@ -112,12 +174,13 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // POST /api/products
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Create a new product
         //
-        // Creates new product
-        // Data comes from request body
+        // Data comes from request BODY as JSON
         // -------------------------------------------------------------
         [HttpPost]
         [EnableRateLimiting("fixed")]
@@ -129,10 +192,12 @@ namespace ManuBackend.Controllers
                 var product =
                     await _productService.CreateProductAsync(dto);
 
-                return StatusCode(201, product); // 201 Created
+                // HTTP 201 Created
+                return StatusCode(201, product);
             }
             catch (InvalidOperationException ex)
             {
+                // Business rule failure
                 return BadRequest(
                     new { message = ex.Message });
             }
@@ -144,11 +209,11 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // PUT /api/products/5
-        //
-        // Updates product by ID
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Update an existing product
         // -------------------------------------------------------------
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(
@@ -164,6 +229,7 @@ namespace ManuBackend.Controllers
             }
             catch (KeyNotFoundException ex)
             {
+                // Product not found
                 return NotFound(
                     new { message = ex.Message });
             }
@@ -175,11 +241,11 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // DELETE /api/products/5
-        //
-        // Deletes product by ID
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Delete a product by ID
         // -------------------------------------------------------------
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
@@ -204,20 +270,20 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // =============================================================
-        // -------------------- BOM ENDPOINTS ---------------------------
+        // ====================== BOM ENDPOINTS ========================
         // =============================================================
 
         // -------------------------------------------------------------
         // GET /api/products/5/boms
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Fetch all BOMs under a specific product
         //
-        // Nested route:
-        // Product → Related BOMs
+        // This is a NESTED RESOURCE
         // -------------------------------------------------------------
         [HttpGet("{productId}/boms")]
-        public async Task<IActionResult>
-            GetBOMsByProductId(int productId)
+        public async Task<IActionResult> GetBOMsByProductId(int productId)
         {
             try
             {
@@ -234,16 +300,16 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // POST /api/products/5/boms
-        //
-        // Creates new BOM under a product
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Create a new BOM under a product
         // -------------------------------------------------------------
         [HttpPost("{productId}/boms")]
-        public async Task<IActionResult>
-            CreateBOM(int productId,
-                      [FromBody] CreateBOMDto dto)
+        public async Task<IActionResult> CreateBOM(
+            int productId,
+            [FromBody] CreateBOMDto dt  o)
         {
             try
             {
@@ -265,16 +331,16 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // PUT /api/products/boms/10
-        //
-        // Updates a BOM directly by BOM ID
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Update BOM using BOM ID directly
         // -------------------------------------------------------------
         [HttpPut("boms/{bomId}")]
-        public async Task<IActionResult>
-            UpdateBOM(int bomId,
-                      [FromBody] UpdateBOMDto dto)
+        public async Task<IActionResult> UpdateBOM(
+            int bomId,
+            [FromBody] UpdateBOMDto dto)
         {
             try
             {
@@ -294,7 +360,6 @@ namespace ManuBackend.Controllers
                     new { message = ex.Message });
             }
         }
-
 
 
         // -------------------------------------------------------------
@@ -323,17 +388,17 @@ namespace ManuBackend.Controllers
         }
 
 
-
         // -------------------------------------------------------------
         // PUT /api/products/5/boms/replace
-        //
-        // Replaces entire BOM list for a product
-        // Used in EditBOM page
+        // -------------------------------------------------------------
+        // Purpose:
+        // - Replace ENTIRE BOM list for a product
+        // - Used in Edit BOM screen
         // -------------------------------------------------------------
         [HttpPut("{productId}/boms/replace")]
-        public async Task<IActionResult>
-            ReplaceBOMs(int productId,
-                        [FromBody] List<CreateBOMDto> boms)
+        public async Task<IActionResult> ReplaceBOMs(
+            int productId,
+            [FromBody] List<CreateBOMDto> boms)
         {
             try
             {
