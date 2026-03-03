@@ -132,13 +132,13 @@ namespace ManuBackend.Data
 
             modelBuilder.Entity<InventoryMaterial>(entity =>
             {
-                // Primary key
                 entity.HasKey(m => m.Id);
+                entity.Property(m => m.MaterialName).IsRequired().HasMaxLength(200);
 
-                // Material name is mandatory
-                entity.Property(m => m.MaterialName)
-                    .IsRequired()
-                    .HasMaxLength(200);
+                // ✅ ADD: Unique constraint (prevent duplicate material names in same inventory)
+                entity.HasIndex(m => new { m.InventoryId, m.MaterialName })
+                      .IsUnique()
+                      .HasDatabaseName("IX_Inventory_Material_Unique");
             });
 
 
