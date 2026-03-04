@@ -124,8 +124,8 @@ namespace ManuBackend.Data
                     .HasMaxLength(100);
 
                 // One Inventory → Many Materials
-                entity.HasMany(i => i.Materials)
-                    .WithOne(m => m.Inventory)
+                entity.HasMany(i => i.Materials)  //  define navigations (how entities reference each other in C#).
+                    .WithOne(m => m.Inventory)  // define the inverse navigation.
                     .HasForeignKey(m => m.InventoryId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
