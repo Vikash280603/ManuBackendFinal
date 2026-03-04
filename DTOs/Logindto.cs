@@ -1,20 +1,23 @@
-﻿// DTO = Data Transfer Object  
-// This defines the shape of data the client must send when logging in  
-// We use DTOs so we never expose the full User model directly  
-
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace ManuBackend.DTOs
 {
     public class LoginDto
     {
-        // [Required] means this field cannot be empty  
-        // [EmailAddress] validates that it looks like an email  
-        [Required]
-        [EmailAddress]
+        // ============================================================
+        // EMAIL VALIDATION
+        // ============================================================
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
         public string Email { get; set; } = string.Empty;
 
-        [Required]
+        // ============================================================
+        // PASSWORD VALIDATION
+        // ============================================================
+        // Note: For login, we don't enforce password complexity
+        // (user might have old password before rules changed)
+        // We just check it's not empty
+        [Required(ErrorMessage = "Password is required")]
         public string Password { get; set; } = string.Empty;
     }
 }
