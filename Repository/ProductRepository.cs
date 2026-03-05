@@ -92,7 +92,7 @@ namespace ManuBackend.Repository
         public async Task<bool> DeleteProductAsync(int id)
         {
             // Find product by primary key
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products.FindAsync(id); // default FindAsync searches only primary key!
 
             if (product == null)
                 return false;
