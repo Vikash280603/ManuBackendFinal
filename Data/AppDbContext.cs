@@ -125,7 +125,7 @@ namespace ManuBackend.Data
 
                 // One Inventory → Many Materials
                 entity.HasMany(i => i.Materials)  //  define navigations (how entities reference each other in C#).
-                    .WithOne(m => m.Inventory)  // define the inverse navigation.
+                    .WithOne(m => m.Inventory)  // define the inverse navigation.   
                     .HasForeignKey(m => m.InventoryId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
