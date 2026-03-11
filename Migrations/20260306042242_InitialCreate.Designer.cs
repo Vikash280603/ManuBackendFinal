@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ManuBackend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260223095402_QualityCheck")]
-    partial class QualityCheck
+    [Migration("20260306042242_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -104,7 +104,9 @@ namespace ManuBackend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InventoryId");
+                    b.HasIndex("InventoryId", "MaterialName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Inventory_Material_Unique");
 
                     b.ToTable("InventoryMaterials");
                 });

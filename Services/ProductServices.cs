@@ -227,7 +227,7 @@ namespace ManuBackend.Services
         {
             var boms = await _repo.GetBOMsByProductIdAsync(productId);
 
-            return boms.Select(b => new BOMDto
+            return boms.OrderBy(b=>b.MaterialName).Select(b => new BOMDto
             {
                 BOMID = b.BOMID,
                 ProductId = b.ProductId,
@@ -370,7 +370,13 @@ namespace ManuBackend.Services
             var product = await _repo.GetProductByIdAsync(productId);
 
             if (product == null)
+            {
                 throw new KeyNotFoundException($"Product with ID {productId} not found");
+            }
+            else if (product.Status != "ACTIVE")
+            {
+                throw new InvalidOperationException($"Product with ID {productId} is not active");
+            }
 
             // Remove existing BOMs
             await _repo.DeleteAllBOMsForProductAsync(productId);

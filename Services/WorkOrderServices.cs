@@ -90,9 +90,12 @@ namespace ManuBackend.Services
             // BUSINESS RULE:
             // A work order cannot exist without a valid product
             var product = await _productRepo.GetProductByIdAsync(dto.ProductId);
-            if (product == null)
+            if (product == null) {
                 throw new KeyNotFoundException($"Product {dto.ProductId} not found");
-
+            }
+            else if (product.Status != "ACTIVE") {
+                throw new InvalidOperationException($"Product {dto.ProductId} is not active");
+            }
             // Create WorkOrder entity
             var workOrder = new WorkOrder
             {

@@ -45,6 +45,9 @@ namespace ManuBackend.Services
         {
             // Fetch inventories from database
             var inventories = await _inventoryRepo.GetAllInventoriesAsync();
+            var allProducts = await _productRepo.GetAllProductsAsync();
+            
+
 
             // SAFETY LOGIC:
             // If inventory table is empty, generate inventory automatically
@@ -53,9 +56,11 @@ namespace ManuBackend.Services
                 await GenerateInventoriesAsync();
                 inventories = await _inventoryRepo.GetAllInventoriesAsync();
             }
-
+            var activeInventories = inventories.Where(i =>
+                allProducts.Any(p => p.Id == i.ProductId && p.Status == "ACTIVE"))
+                .ToList();
             // Convert Entity models → DTOs
-            return inventories.Select(i => new InventoryDto
+            return activeInventories.Select(i => new InventoryDto
             {
                 InventoryId = i.InventoryId,
                 ProductId = i.ProductId,
@@ -63,7 +68,7 @@ namespace ManuBackend.Services
                 CreatedAt = i.CreatedAt,
 
                 // Nested mapping for materials
-                Materials = i.Materials.Select(m => new InventoryMaterialDto
+                Materials = i.Materials.OrderBy(b=>b.MaterialName).Select(m => new InventoryMaterialDto
                 {
                     Id = m.Id,
                     InventoryId = m.InventoryId,
@@ -269,14 +274,7 @@ namespace ManuBackend.Services
                 ProductId = product.Id,
                 Location = randomLocation,
                 CreatedAt = DateTime.UtcNow,
-                Materials = product.BOMs.Select(bom =>
-                    new InventoryMaterial
-                    {
-                        MaterialName = bom.MaterialName,
-                        AvailableQty = random.Next(0, 30),
-                        ThresholdQty = 10,
-                        CreatedAt = DateTime.UtcNow
-                    }).ToList()
+                Materials = new List<InventoryMaterial>()
             };
 
             await _inventoryRepo.CreateInventoryAsync(inventory);

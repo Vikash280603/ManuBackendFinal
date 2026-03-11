@@ -101,7 +101,9 @@ namespace ManuBackend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InventoryId");
+                    b.HasIndex("InventoryId", "MaterialName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Inventory_Material_Unique");
 
                     b.ToTable("InventoryMaterials");
                 });

@@ -30,6 +30,7 @@ namespace ManuBackend.Data
     // By inheriting from DbContext, we get:
     // - Database connections
     // - CRUD operations
+    // - Change tracking
     // - Migrations support
     public class AppDbContext : DbContext
     {
