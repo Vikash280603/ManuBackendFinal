@@ -24,17 +24,20 @@ namespace ManuBackend.Services
     {
         // Repository dependency (data access)
         private readonly IProductRepository _repo;
+        private readonly IInventoryService _inventoryService;
 
         // IServiceProvider is used to resolve services dynamically
         // This avoids circular dependency between ProductService & InventoryService
         private readonly IServiceProvider _serviceProvider;
 
+
         // -------------------- CONSTRUCTOR --------------------
         // Dependencies are injected by ASP.NET Core DI container
-        public ProductService(IProductRepository repo, IServiceProvider serviceProvider)
+        public ProductService(IProductRepository repo, IServiceProvider serviceProvider,IInventoryService invService)
         {
             _repo = repo;
             _serviceProvider = serviceProvider;
+            _inventoryService = invService;
         }
 
         // =====================================================
@@ -144,15 +147,16 @@ namespace ManuBackend.Services
             try
             {
                 // Create a new DI scope
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    // Resolve InventoryService safely
-                    var inventoryService = scope.ServiceProvider
-                        .GetRequiredService<IInventoryService>();
+                //using (var scope = _serviceProvider.CreateScope())
+                //{
+                //    // Resolve InventoryService safely
+                //    var inventoryService = scope.ServiceProvider
+                //        .GetRequiredService<IInventoryService>();
 
-                    await inventoryService
-                        .CreateInventoryForProductAsync(savedProduct.Id);
-                }
+                //    await inventoryService
+                //        .CreateInventoryForProductAsync(savedProduct.Id);
+                //}
+                await _inventoryService.CreateInventoryForProductAsync(savedProduct.Id);
             }
             catch (Exception ex)
             {
@@ -180,6 +184,8 @@ namespace ManuBackend.Services
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {id} not found");
+
+
 
             // Update ONLY fields provided by client
             if (!string.IsNullOrWhiteSpace(dto.Name))
@@ -260,14 +266,15 @@ namespace ManuBackend.Services
             // Sync inventory after BOM creation
             try
             {
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var inventoryService = scope.ServiceProvider
-                        .GetRequiredService<IInventoryService>();
+                //using (var scope = _serviceProvider.CreateScope())
+                //{
+                //    var inventoryService = scope.ServiceProvider
+                //        .GetRequiredService<IInventoryService>();
 
-                    await inventoryService
-                        .SyncInventoryMaterialsAsync(productId);
-                }
+                //    await inventoryService
+                //        .SyncInventoryMaterialsAsync(productId);
+                //}
+                await _inventoryService.SyncInventoryMaterialsAsync(productId);
             }
             catch (Exception ex)
             {
@@ -304,14 +311,15 @@ namespace ManuBackend.Services
             // Sync inventory after BOM update
             try
             {
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var inventoryService = scope.ServiceProvider
-                        .GetRequiredService<IInventoryService>();
+                //using (var scope = _serviceProvider.CreateScope())
+                //{
+                //    var inventoryService = scope.ServiceProvider
+                //        .GetRequiredService<IInventoryService>();
 
-                    await inventoryService
-                        .SyncInventoryMaterialsAsync(updated.ProductId);
-                }
+                //    await inventoryService
+                //        .SyncInventoryMaterialsAsync(updated.ProductId);
+                //}
+                await _inventoryService.SyncInventoryMaterialsAsync(updated.ProductId);
             }
             catch (Exception ex)
             {
@@ -342,14 +350,15 @@ namespace ManuBackend.Services
             {
                 try
                 {
-                    using (var scope = _serviceProvider.CreateScope())
-                    {
-                        var inventoryService = scope.ServiceProvider
-                            .GetRequiredService<IInventoryService>();
+                    //using (var scope = _serviceProvider.CreateScope())
+                    //{
+                    //    var inventoryService = scope.ServiceProvider
+                    //        .GetRequiredService<IInventoryService>();
 
-                        await inventoryService
-                            .SyncInventoryMaterialsAsync(productId);
-                    }
+                    //    await inventoryService
+                    //        .SyncInventoryMaterialsAsync(productId);
+                    //}
+                    await _inventoryService.SyncInventoryMaterialsAsync(productId);
                 }
                 catch (Exception ex)
                 {
@@ -401,14 +410,15 @@ namespace ManuBackend.Services
             // Sync inventory after replacement
             try
             {
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var inventoryService = scope.ServiceProvider
-                        .GetRequiredService<IInventoryService>();
+                //using (var scope = _serviceProvider.CreateScope())
+                //{
+                //    var inventoryService = scope.ServiceProvider
+                //        .GetRequiredService<IInventoryService>();
 
-                    await inventoryService
-                        .SyncInventoryMaterialsAsync(productId);
-                }
+                //    await inventoryService
+                //        .SyncInventoryMaterialsAsync(productId);
+                //}
+                await _inventoryService.SyncInventoryMaterialsAsync(productId);
             }
             catch (Exception ex)
             {
